@@ -23,6 +23,8 @@ export class VillageScene {
 
     this.selectedItemToPlace = null;
     this.activeObject = null;
+    this.dragState = null;
+    this.dragMoved = false;
 
     this.textureCache = new Map();
     this.clock = new THREE.Clock();
@@ -34,7 +36,8 @@ export class VillageScene {
   init() {
     // 1. Scene 생성
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xfef5f0);
+    this.scene.background = new THREE.Color(0xe8f3e2);
+    this.scene.fog = new THREE.Fog(0xe8f3e2, 34, 78);
 
     // 2. Camera 설정
     const aspect = this.container.clientWidth / this.container.clientHeight;
@@ -48,6 +51,9 @@ export class VillageScene {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.12;
     this.container.appendChild(this.renderer.domElement);
 
     // 4. OrbitControls
@@ -59,7 +65,7 @@ export class VillageScene {
     this.controls.maxDistance = 45;
 
     // 5. 조명 설정
-    const ambientLight = new THREE.AmbientLight(0xfff7ed, 0.9);
+    const ambientLight = new THREE.HemisphereLight(0xfff8ed, 0x78934d, 1.15);
     this.scene.add(ambientLight);
 
     const sunLight = new THREE.DirectionalLight(0xfffaed, 1.3);
@@ -84,6 +90,7 @@ export class VillageScene {
 
     // 8. 살랑살랑 벚꽃잎 & 반짝이 파티클
     this.createAmbientParticles();
+    this.createSkyDecor();
 
     // 9. 마을 오브젝트 로드
     this.refreshVillageObjects();
@@ -98,15 +105,15 @@ export class VillageScene {
   // 3D 체커보드 잔디 타일 바닥
   createCheckerboardGround() {
     const half = (this.gridSize * this.tileSize) / 2;
-    const tileGeo = new THREE.BoxGeometry(this.tileSize * 0.95, 0.35, this.tileSize * 0.95);
+    const tileGeo = new THREE.BoxGeometry(this.tileSize, 0.35, this.tileSize);
 
     const matLightGrass = new THREE.MeshLambertMaterial({ color: 0xa3e635 }); // 산뜻한 연두
     const matDeepGrass = new THREE.MeshLambertMaterial({ color: 0x84cc16 }); // 싱그러운 풀색
 
+    const grassMat = new THREE.MeshStandardMaterial({ color: 0xc9e8c7, roughness: 1, flatShading: true });
     for (let x = 0; x < this.gridSize; x++) {
       for (let z = 0; z < this.gridSize; z++) {
-        const mat = (x + z) % 2 === 0 ? matLightGrass : matDeepGrass;
-        const tileMesh = new THREE.Mesh(tileGeo, mat);
+        const tileMesh = new THREE.Mesh(tileGeo, grassMat);
         const posX = (x + 0.5) * this.tileSize - half;
         const posZ = (z + 0.5) * this.tileSize - half;
 
@@ -120,12 +127,46 @@ export class VillageScene {
     }
 
     // 도톰한 쿠키색 흙 베이스
-    const baseGeo = new THREE.BoxGeometry(this.gridSize * this.tileSize + 1.2, 0.8, this.gridSize * this.tileSize + 1.2);
-    const baseMat = new THREE.MeshLambertMaterial({ color: 0xc89666 });
-    const baseMesh = new THREE.Mesh(baseGeo, baseMat);
-    baseMesh.position.set(0, -0.75, 0);
-    baseMesh.receiveShadow = true;
-    this.scene.add(baseMesh);
+    const island = new THREE.Mesh(new THREE.CylinderGeometry(16.6, 9.8, 3.2, 8), new THREE.MeshStandardMaterial({ color: 0x795a40, roughness: 1, flatShading: true }));
+    island.position.y = -1.95;
+    island.rotation.y = Math.PI / 8;
+    island.receiveShadow = true;
+    island.castShadow = true;
+    this.scene.add(island);
+    const lower = new THREE.Mesh(new THREE.CylinderGeometry(10.1, 9.2, 0.72, 8), new THREE.MeshStandardMaterial({ color: 0xb99a67, roughness: 1, flatShading: true }));
+    lower.position.y = -3.75;
+    lower.rotation.y = Math.PI / 8;
+    lower.castShadow = true;
+    this.scene.add(lower);
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(16.62, 16.2, 0.18, 8), new THREE.MeshStandardMaterial({ color: 0xb8d9ad, roughness: 1, flatShading: true }));
+    rim.position.y = -0.39;
+    rim.rotation.y = Math.PI / 8;
+    rim.receiveShadow = true;
+    this.scene.add(rim);
+  }
+
+  createSkyDecor() {
+    this.skyClouds = [];
+    const cloudMat = new THREE.MeshStandardMaterial({ color: 0xfffdf7, roughness: 0.92, flatShading: true });
+    const layouts = [[-16, 11, -15, 1.6, 0.18], [15, 14, -10, 1.05, -0.13], [18, 8, 13, 0.82, 0.11], [-19, 15, 10, 0.72, -0.09]];
+    layouts.forEach(([x, y, z, size, drift]) => {
+      const cloud = new THREE.Group();
+      [[0, 0, 0, 0.72], [0.72, 0.08, 0.02, 0.58], [-0.68, 0.05, 0.04, 0.54], [0.12, 0.22, -0.12, 0.62]].forEach(([cx, cy, cz, radius]) => {
+        const puff = new THREE.Mesh(new THREE.SphereGeometry(radius, 12, 10), cloudMat);
+        puff.position.set(cx, cy, cz);
+        puff.scale.set(1.25, 0.78, 0.9);
+        puff.castShadow = true;
+        cloud.add(puff);
+      });
+      cloud.position.set(x, y, z);
+      cloud.scale.setScalar(size);
+      cloud.userData = { drift, startX: x, baseY: y, phase: Math.random() * Math.PI * 2 };
+      this.scene.add(cloud);
+      this.skyClouds.push(cloud);
+    });
+    const sun = new THREE.Mesh(new THREE.CircleGeometry(3.2, 48), new THREE.MeshBasicMaterial({ color: 0xf2eccc, transparent: true, opacity: 0.72, depthWrite: false }));
+    sun.position.set(-20, 18, -24);
+    this.scene.add(sun);
   }
 
   createHoverIndicator() {
@@ -183,25 +224,26 @@ export class VillageScene {
     const group = new THREE.Group();
 
     // 둥근 크림색 원통 집 벽체
-    const wallGeo = new THREE.CylinderGeometry(0.75, 0.85, 1.0, 18);
+    const wallGeo = new THREE.BoxGeometry(1.85, 1.15, 1.55);
     const wallMat = new THREE.MeshLambertMaterial({ color: 0xfffbeb });
     const wall = new THREE.Mesh(wallGeo, wallMat);
-    wall.position.y = 0.5;
+    wall.position.y = 0.58;
     wall.castShadow = true;
     wall.receiveShadow = true;
     group.add(wall);
 
     // 딸기 버섯 돔 지붕
-    const roofGeo = new THREE.SphereGeometry(1.05, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.55);
+    const roofGeo = new THREE.ConeGeometry(1.45, 1.15, 4);
     const roofMat = new THREE.MeshLambertMaterial({ color: 0xf43f5e }); // 선명한 딸기 레드
     const roof = new THREE.Mesh(roofGeo, roofMat);
-    roof.position.y = 0.95;
+    roof.position.y = 1.65;
+    roof.rotation.y = Math.PI / 4;
     roof.castShadow = true;
     group.add(roof);
 
     // 지붕 위 흰색 딸기 도트 무늬들
     const dotGeo = new THREE.SphereGeometry(0.12, 8, 8);
-    const dotMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const dotMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
     const dotCoords = [
       [0.6, 1.45, 0.4], [-0.6, 1.45, 0.4], [0.1, 1.55, 0.7],
       [-0.4, 1.6, -0.5], [0.5, 1.55, -0.5], [0, 1.85, 0]
@@ -228,12 +270,16 @@ export class VillageScene {
     group.add(door);
 
     // 노란 창문
-    const winGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.08, 12);
-    const winMat = new THREE.MeshLambertMaterial({ color: 0xfef08a });
-    const win = new THREE.Mesh(winGeo, winMat);
-    win.rotation.x = Math.PI / 2;
-    win.position.set(0.65, 0.6, 0.45);
-    group.add(win);
+    const winGeo = new THREE.BoxGeometry(0.42, 0.34, 0.08);
+    const winMat = new THREE.MeshStandardMaterial({ color: 0xb9dfd9, roughness: 0.55, flatShading: true });
+    [-0.52, 0.52].forEach(x => {
+      const win = new THREE.Mesh(winGeo, winMat);
+      win.position.set(x, 0.68, 0.8);
+      group.add(win);
+      const crossbar = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.34, 0.09), new THREE.MeshLambertMaterial({ color: 0xfffbeb }));
+      crossbar.position.set(x, 0.68, 0.85);
+      group.add(crossbar);
+    });
 
     return group;
   }
@@ -665,8 +711,11 @@ export class VillageScene {
     window.addEventListener('resize', () => this.onResize());
 
     const dom = this.renderer.domElement;
+    dom.style.touchAction = 'none';
     dom.addEventListener('pointermove', (e) => this.onPointerMove(e));
     dom.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+    dom.addEventListener('pointerup', (e) => this.onPointerUp(e));
+    dom.addEventListener('pointercancel', (e) => this.onPointerUp(e));
   }
 
   onResize() {
@@ -689,6 +738,12 @@ export class VillageScene {
     const { x, y } = this.getPointerCoord(e);
     this.mouse.set(x, y);
 
+    if (this.dragState && this.dragState.pointerId === e.pointerId) {
+      if (Math.hypot(e.clientX - this.dragState.startX, e.clientY - this.dragState.startY) > 5) this.dragMoved = true;
+      if (this.dragMoved) this.updateDragTarget();
+      return;
+    }
+
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(this.groundTiles);
 
@@ -705,7 +760,7 @@ export class VillageScene {
   }
 
   onPointerDown(e) {
-    if (e.button !== 0) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
 
     const { x, y } = this.getPointerCoord(e);
     this.mouse.set(x, y);
@@ -727,11 +782,13 @@ export class VillageScene {
       const hitObj = objectHits[0].object;
       const { instanceId } = hitObj.userData;
       if (instanceId) {
-        this.triggerObjectJump(instanceId);
-
-        if (window.onVillageObjectClicked) {
-          window.onVillageObjectClicked(hitObj.userData);
-        }
+        const entry = this.placedObjects.get(instanceId);
+        this.dragState = { pointerId: e.pointerId, instanceId, userData: hitObj.userData,
+          startX: e.clientX, startY: e.clientY, startGridX: entry.data.x, startGridZ: entry.data.z };
+        this.dragMoved = false;
+        this.controls.enabled = false;
+        this.renderer.domElement.setPointerCapture(e.pointerId);
+        e.preventDefault();
         return;
       }
     }
@@ -755,6 +812,54 @@ export class VillageScene {
         }
       }
     }
+  }
+
+  updateDragTarget() {
+    if (!this.dragState) return;
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const hits = this.raycaster.intersectObjects(this.groundTiles);
+    if (!hits.length) { this.hoverIndicator.visible = false; return; }
+    const tile = hits[0].object;
+    this.dragState.target = tile.userData;
+    this.hoverIndicator.position.copy(tile.position);
+    this.hoverIndicator.position.y += 0.05;
+    this.hoverIndicator.material.color.set(0xf9a8d4);
+    this.hoverIndicator.visible = true;
+    const entry = this.placedObjects.get(this.dragState.instanceId);
+    if (entry) {
+      const half = (this.gridSize * this.tileSize) / 2;
+      entry.group.position.x = (tile.userData.gridX + 0.5) * this.tileSize - half;
+      entry.group.position.z = (tile.userData.gridZ + 0.5) * this.tileSize - half;
+    }
+  }
+
+  onPointerUp(e) {
+    if (!this.dragState || this.dragState.pointerId !== e.pointerId) return;
+    const drag = this.dragState;
+    const entry = this.placedObjects.get(drag.instanceId);
+    const target = drag.target;
+    const occupied = target && store.state.village.some(v => v.instanceId !== drag.instanceId && v.x === target.gridX && v.z === target.gridZ);
+    if (entry && this.dragMoved && target && !occupied) {
+      entry.data.x = target.gridX;
+      entry.data.z = target.gridZ;
+      entry.group.userData.gridX = target.gridX;
+      entry.group.userData.gridZ = target.gridZ;
+      store.saveState();
+      sound.playPop();
+    } else if (entry) {
+      const half = (this.gridSize * this.tileSize) / 2;
+      entry.group.position.x = (drag.startGridX + 0.5) * this.tileSize - half;
+      entry.group.position.z = (drag.startGridZ + 0.5) * this.tileSize - half;
+      if (!this.dragMoved) {
+        this.triggerObjectJump(drag.instanceId);
+        if (window.onVillageObjectClicked) window.onVillageObjectClicked(drag.userData);
+      } else if (occupied) sound.playBounce();
+    }
+    this.dragState = null;
+    this.dragMoved = false;
+    this.controls.enabled = true;
+    this.hoverIndicator.material.color.set(0xfef08a);
+    this.hoverIndicator.visible = false;
   }
 
   setPlacementItem(itemId) {
@@ -792,6 +897,13 @@ export class VillageScene {
       }
 
       group.position.y = curY;
+      group.rotation.y = Math.sin(time * 0.75 + bounceOffset) * 0.035;
+    });
+
+    this.skyClouds?.forEach(cloud => {
+      const { drift, startX, phase } = cloud.userData;
+      cloud.position.x = startX + Math.sin(time * Math.abs(drift) + phase) * 2.1;
+      cloud.position.y = cloud.userData.baseY + Math.sin(time * 0.45 + phase) * 0.12;
     });
 
     // 벚꽃 파티클 낙하
