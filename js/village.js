@@ -36,8 +36,8 @@ export class VillageScene {
   init() {
     // 1. Scene 생성
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xe8f3e2);
-    this.scene.fog = new THREE.Fog(0xe8f3e2, 34, 78);
+    this.scene.background = new THREE.Color(0xeaf8e7);
+    this.scene.fog = new THREE.Fog(0xeaf8e7, 34, 78);
 
     // 2. Camera 설정
     const aspect = this.container.clientWidth / this.container.clientHeight;
@@ -53,7 +53,7 @@ export class VillageScene {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.12;
+    this.renderer.toneMappingExposure = 1.2;
     this.container.appendChild(this.renderer.domElement);
 
     // 4. OrbitControls
@@ -65,10 +65,10 @@ export class VillageScene {
     this.controls.maxDistance = 45;
 
     // 5. 조명 설정
-    const ambientLight = new THREE.HemisphereLight(0xfff8ed, 0x78934d, 1.15);
+    const ambientLight = new THREE.HemisphereLight(0xfffdf0, 0x9bc99b, 1.4);
     this.scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xfffaed, 1.3);
+    const sunLight = new THREE.DirectionalLight(0xfff5dc, 1.55);
     sunLight.position.set(16, 26, 12);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.width = 1024;
@@ -104,13 +104,14 @@ export class VillageScene {
 
   // 3D 체커보드 잔디 타일 바닥
   createCheckerboardGround() {
+    this.createOcean();
     const half = (this.gridSize * this.tileSize) / 2;
     const tileGeo = new THREE.BoxGeometry(this.tileSize, 0.35, this.tileSize);
 
     const matLightGrass = new THREE.MeshLambertMaterial({ color: 0xa3e635 }); // 산뜻한 연두
     const matDeepGrass = new THREE.MeshLambertMaterial({ color: 0x84cc16 }); // 싱그러운 풀색
 
-    const grassMat = new THREE.MeshStandardMaterial({ color: 0xc9e8c7, roughness: 1, flatShading: true });
+    const grassMat = new THREE.MeshStandardMaterial({ color: 0xd5f0cf, roughness: 1, flatShading: true });
     for (let x = 0; x < this.gridSize; x++) {
       for (let z = 0; z < this.gridSize; z++) {
         const tileMesh = new THREE.Mesh(tileGeo, grassMat);
@@ -127,22 +128,44 @@ export class VillageScene {
     }
 
     // 도톰한 쿠키색 흙 베이스
-    const island = new THREE.Mesh(new THREE.CylinderGeometry(16.6, 9.8, 3.2, 8), new THREE.MeshStandardMaterial({ color: 0x795a40, roughness: 1, flatShading: true }));
+    const island = new THREE.Mesh(new THREE.CylinderGeometry(16.6, 9.8, 3.2, 8), new THREE.MeshStandardMaterial({ color: 0x9b7658, roughness: 1, flatShading: true }));
     island.position.y = -1.95;
     island.rotation.y = Math.PI / 8;
     island.receiveShadow = true;
     island.castShadow = true;
     this.scene.add(island);
-    const lower = new THREE.Mesh(new THREE.CylinderGeometry(10.1, 9.2, 0.72, 8), new THREE.MeshStandardMaterial({ color: 0xb99a67, roughness: 1, flatShading: true }));
+    const lower = new THREE.Mesh(new THREE.CylinderGeometry(10.1, 9.2, 0.72, 8), new THREE.MeshStandardMaterial({ color: 0xd8bf8b, roughness: 1, flatShading: true }));
     lower.position.y = -3.75;
     lower.rotation.y = Math.PI / 8;
     lower.castShadow = true;
     this.scene.add(lower);
-    const rim = new THREE.Mesh(new THREE.CylinderGeometry(16.62, 16.2, 0.18, 8), new THREE.MeshStandardMaterial({ color: 0xb8d9ad, roughness: 1, flatShading: true }));
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(16.62, 16.2, 0.18, 8), new THREE.MeshStandardMaterial({ color: 0xc8e9bb, roughness: 1, flatShading: true }));
     rim.position.y = -0.39;
     rim.rotation.y = Math.PI / 8;
     rim.receiveShadow = true;
     this.scene.add(rim);
+  }
+
+  createOcean() {
+    const water = new THREE.Mesh(
+      new THREE.PlaneGeometry(240, 240),
+      new THREE.MeshStandardMaterial({ color: 0x78dbe5, roughness: 0.38, metalness: 0.04, flatShading: true })
+    );
+    water.rotation.x = -Math.PI / 2;
+    water.position.y = -4.02;
+    water.receiveShadow = true;
+    this.scene.add(water);
+
+    const waveMat = new THREE.MeshBasicMaterial({ color: 0xc8fbf4, transparent: true, opacity: 0.42, depthWrite: false });
+    this.oceanWaves = [10.8, 12.2, 13.8, 15.5].map((radius, index) => {
+      const wave = new THREE.Mesh(new THREE.TorusGeometry(1, 0.035, 6, 96), waveMat);
+      wave.rotation.x = Math.PI / 2;
+      wave.position.set(index % 2 ? 0.6 : -0.4, -3.96 + index * 0.002, index % 2 ? -0.5 : 0.45);
+      wave.scale.set(radius, radius * 0.72, 1);
+      wave.userData = { baseScale: radius, phase: index * 1.6 };
+      this.scene.add(wave);
+      return wave;
+    });
   }
 
   createSkyDecor() {
