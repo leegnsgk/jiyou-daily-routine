@@ -1,47 +1,223 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#dff3ef" />
-  <title>지유의 반짝 루틴섬</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
-  <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.169.0/build/three.module.js"}}</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>지유의 먼작귀 3D 루틴 모험 & 마을 꾸미기 🌸</title>
+  <link rel="stylesheet" href="./css/style.css">
+
+  <!-- Three.js CDN Import Map (No-Build 환경 완벽 지원) -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
 </head>
 <body>
-  <main class="app-shell">
-    <header class="topbar">
-      <a class="brand" href="#" aria-label="반짝 루틴섬 홈"><span class="brand-mark">✿</span><span>반짝 루틴섬</span></a>
-      <div class="top-meta"><span class="date-pill" id="dateLabel"></span><span class="star-pill"><span>★</span><b id="starCount">0</b><small>반짝별</small></span></div>
-    </header>
 
-    <section class="island-scene" aria-label="3D 하늘섬 풍경">
-      <div class="scene-copy"><span class="eyebrow">JIYOU'S LITTLE WORLD</span><h1>오늘도 한 걸음,<br><em>반짝이는 모험!</em></h1><p id="sceneMessage">작은 해님이 기다리고 있어요 ☀️</p></div>
-      <div class="scene-badge"><span class="badge-icon">☁️</span><span><b>오늘의 하늘섬</b><small>루틴을 끝내면 섬이 자라나요</small></span></div>
-      <div class="scene-hint">섬을 드래그해서 둘러봐요 <span>↗</span></div>
-      <div id="three-scene"></div>
-      <div class="scene-wash"></div>
-    </section>
-
-    <section class="dashboard">
-      <div class="routine-panel">
-        <div class="panel-heading"><div><span class="section-kicker">TODAY'S ADVENTURE</span><h2>오늘의 루틴 <span class="sparkle">✦</span></h2></div><div class="progress-ring" id="progressRing"><div><b id="progressCount">0/0</b><small>완료</small></div></div></div>
-        <nav class="weekday-tabs" id="weekdayTabs" aria-label="요일 선택"></nav>
-        <div class="progress-track"><span id="progressBar"></span></div>
-        <div class="routine-list" id="routineList"></div>
-        <div class="all-done" id="allDone" hidden><span>🌈</span><div><b>오늘의 모험 완료!</b><small>정말 멋져요. 내일도 반짝여요!</small></div><span class="done-confetti">✦ ✧ ✦</span></div>
+  <!-- 1. 상단 공통 헤더 -->
+  <header class="app-header">
+    <div class="brand-area">
+      <span class="brand-icon">🌸</span>
+      <h1 class="brand-title">지유의 먼작귀 루틴 모험</h1>
+    </div>
+    <div class="header-actions">
+      <div class="points-pill">
+        <span>🪙</span>
+        <span id="headerUserPoints">100 P</span>
       </div>
-      <aside class="side-column">
-        <div class="buddy-card"><div class="card-topline"><span>오늘의 친구</span><span class="online-dot"></span></div><div class="buddy-emoji">🦊</div><h3>모모가 응원해!</h3><p id="buddyLine">하나씩 해보면 금방이야. 같이 가자!</p><div class="buddy-speech">“넌 할 수 있어!” <span>♡</span></div></div>
-        <div class="reward-card"><div class="reward-icon">🎁</div><div><span>오늘의 반짝 보상</span><b id="rewardText">첫 루틴을 완료해 보세요!</b></div><span class="reward-arrow">✧</span></div>
-      </aside>
+      <button id="openRoutineManageBtn" class="header-btn" type="button">⚙️ 루틴 설정</button>
+    </div>
+  </header>
+
+  <!-- 2. 상단 탭 네비게이션 -->
+  <nav class="nav-tabs-bar">
+    <button class="nav-tab-btn active" data-tab="routine" type="button">
+      <span>📋</span> 오늘의 루틴
+    </button>
+    <button class="nav-tab-btn" data-tab="village" type="button">
+      <span>🏡</span> 3D 먼작귀 마을
+    </button>
+    <button id="rouletteTabNavBtn" class="nav-tab-btn" data-tab="roulette" type="button">
+      <span>🎡</span> 행운의 룰렛
+      <span id="rouletteReadyBadge" class="roulette-ready-badge" style="display:none;">READY! ✨</span>
+    </button>
+  </nav>
+
+  <!-- 3. 메인 뷰포트 (3개 탭 뷰) -->
+  <main class="main-viewport">
+
+    <!-- [탭 1] 📋 오늘의 루틴 뷰 -->
+    <section id="tabView_routine" class="tab-view active">
+      <div class="routine-content-box">
+        <!-- 상단 헤더 & 프로그레스 바 -->
+        <div class="routine-header-banner">
+          <div class="banner-top-row">
+            <h2 id="todayTitle" class="today-title">🌸 오늘의 루틴 모험</h2>
+            <span id="routineProgressText" class="progress-text">0 / 0 완료 (0%)</span>
+          </div>
+          <div class="progress-bar-track">
+            <div id="routineProgressFill" class="progress-bar-fill"></div>
+          </div>
+        </div>
+
+        <!-- 당일 올클리어 축하 배너 -->
+        <div id="allClearBanner" class="all-clear-banner">
+          <span class="all-clear-text">🎉 와아! 오늘 루틴을 모두 끝냈어요! 행운의 룰렛을 돌리러 가요!</span>
+          <button id="goRouletteTabBtn" class="go-roulette-btn" type="button">룰렛 돌리기 🎡</button>
+        </div>
+
+        <!-- 루틴 카드 리스트 컨테이너 -->
+        <div id="routineCardsContainer" class="routine-cards-list"></div>
+      </div>
     </section>
-    <footer>작은 습관이 모여 멋진 하루가 돼요 <span>✦</span></footer>
+
+    <!-- [탭 2] 🏡 3D 먼작귀 마을 뷰 -->
+    <section id="tabView_village" class="tab-view">
+      <!-- Three.js 캔버스 -->
+      <div id="villageCanvasContainer"></div>
+
+      <!-- 아이템 배치 모드 안내 배너 -->
+      <div id="placementModeBanner" class="placement-banner"></div>
+
+      <!-- 3D 캐릭터 말풍선 UI -->
+      <div id="villageSpeechBubble" class="village-speech-bubble"></div>
+
+      <!-- 하단 HUD 도크 바 -->
+      <div class="village-hud-bar">
+        <button id="openShopBtn" class="hud-btn" type="button">
+          <span>🛍️</span> 먼작귀 상점
+        </button>
+        <button id="openInventoryBtn" class="hud-btn" type="button">
+          <span>🎒</span> 내 보관함
+        </button>
+      </div>
+    </section>
+
+    <!-- [탭 3] 🎡 행운의 룰렛 뷰 -->
+    <section id="tabView_roulette" class="tab-view">
+      <div class="roulette-wrapper">
+        <h2 class="roulette-title">🎡 행운의 보너스 룰렛</h2>
+        
+        <div class="roulette-canvas-box">
+          <div class="roulette-arrow">▼</div>
+          <canvas id="rouletteCanvas" width="320" height="320"></canvas>
+        </div>
+
+        <button id="spinRouletteBtn" class="roulette-spin-btn" type="button">룰렛 돌리기! ✨</button>
+        <p id="rouletteStatusMsg" class="roulette-status-msg"></p>
+      </div>
+    </section>
+
   </main>
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="app.js"></script>
+
+  <!-- ================================================= -->
+  <!-- 4. 팝업 모달들 -->
+  <!-- ================================================= -->
+
+  <!-- [모달 1] ⚙️ 루틴 관리 모달 -->
+  <div id="routineManageModal" class="modal-overlay">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3 class="modal-title">⚙️ 루틴 관리 및 수정</h3>
+        <button id="closeRoutineManageBtn" class="modal-close-btn" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- 요일 선택 탭 -->
+        <div class="modal-day-tabs">
+          <button class="modal-day-tab active" data-day="Monday">월요일</button>
+          <button class="modal-day-tab" data-day="Tuesday">화요일</button>
+          <button class="modal-day-tab" data-day="Wednesday">수요일</button>
+          <button class="modal-day-tab" data-day="Thursday">목요일</button>
+          <button class="modal-day-tab" data-day="Friday">금요일</button>
+          <button class="modal-day-tab" data-day="Saturday">토요일</button>
+          <button class="modal-day-tab" data-day="Sunday">일요일</button>
+        </div>
+
+        <!-- 해당 요일 루틴 리스트 -->
+        <div id="modalRoutineItemList" class="modal-routine-list"></div>
+
+        <!-- 새 항목 추가 폼 -->
+        <div class="modal-add-form">
+          <input type="text" id="newRoutineInput" placeholder="새로운 루틴 항목을 입력하세요 (예: 피아노연습)">
+          <button id="addRoutineBtn" type="button">추가 ➕</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="resetRoutinesBtn" class="footer-btn reset-btn" type="button">🔄 기본 루틴으로 복원</button>
+        <div style="display: flex; gap: 8px;">
+          <button id="exportBackupBtn" class="footer-btn backup-btn" type="button">💾 백업 다운로드</button>
+          <label class="footer-btn backup-btn" style="cursor: pointer;">
+            📂 백업 불러오기
+            <input type="file" id="importBackupInput" accept=".json" style="display: none;">
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- [모달 2] 🛍️ 포인트 상점 모달 -->
+  <div id="shopModal" class="modal-overlay">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3 class="modal-title">🛍️ 먼작귀 마을 상점 (보유: <span id="shopCurrentPoints" style="color:#d97706;">0 P</span>)</h3>
+        <button id="closeShopBtn" class="modal-close-btn" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="shopItemList" class="shop-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- [모달 3] 🎒 내 보관함 모달 -->
+  <div id="inventoryModal" class="modal-overlay">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3 class="modal-title">🎒 내 보관함 (마을에 놓을 아이템 선택)</h3>
+        <button id="closeInventoryBtn" class="modal-close-btn" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="inventoryItemList" class="inventory-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- [모달 4] 📍 배치된 오브젝트 조작 모달 -->
+  <div id="objectActionModal" class="modal-overlay">
+    <div class="modal-window" style="max-width: 360px;">
+      <div class="modal-header">
+        <h3 id="objectActionTitle" class="modal-title">오브젝트 조작</h3>
+        <button id="closeObjectActionBtn" class="modal-close-btn" type="button">✕</button>
+      </div>
+      <div class="modal-body" style="align-items: center; gap: 14px; padding: 24px;">
+        <p style="font-size: 15px; font-weight: 700; color: #666;">이 아이템을 보관함으로 다시 회수할까요?</p>
+        <div style="display: flex; gap: 12px; width: 100%;">
+          <button id="removeObjectBtn" class="shop-buy-btn" style="background: #e63946;" type="button">보관함으로 회수 🎒</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- [모달 5] 룰렛 결과 축하 모달 -->
+  <div id="rouletteResultModal" class="modal-overlay">
+    <div class="modal-window" style="max-width: 400px; text-align: center;">
+      <div class="modal-header">
+        <h3 class="modal-title">🎊 축하합니다! 🎊</h3>
+        <button id="closeRouletteResultBtn" class="modal-close-btn" type="button">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 30px 20px; align-items: center;">
+        <div style="font-size: 48px; margin-bottom: 12px;">🌟</div>
+        <p id="rouletteResultMsg" style="font-size: 18px; font-weight: 800; line-height: 1.6; color: #4a403a;"></p>
+        <button onclick="document.getElementById('rouletteResultModal').style.display='none'" class="roulette-spin-btn" style="margin-top: 20px; font-size: 16px; padding: 10px 28px;" type="button">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 메인 모듈 실행 -->
+  <script type="module" src="./js/app.js"></script>
 </body>
 </html>
+
