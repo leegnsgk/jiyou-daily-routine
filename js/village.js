@@ -372,7 +372,7 @@ export class VillageScene {
 
     // 시럽 흘러내림 방울들
     const dropGeo = new THREE.SphereGeometry(0.12, 8, 8);
-    [ [0.65, 0.85, 0], [-0.55, 0.8, 0.3], [0.2, 0.75, -0.6] ].forEach(([dx, dy, dz]) => {
+    [[0.65, 0.85, 0], [-0.55, 0.8, 0.3], [0.2, 0.75, -0.6]].forEach(([dx, dy, dz]) => {
       const drop = new THREE.Mesh(dropGeo, syrupMat);
       drop.position.set(dx, dy, dz);
       group.add(drop);
@@ -783,8 +783,10 @@ export class VillageScene {
       const { instanceId } = hitObj.userData;
       if (instanceId) {
         const entry = this.placedObjects.get(instanceId);
-        this.dragState = { pointerId: e.pointerId, instanceId, userData: hitObj.userData,
-          startX: e.clientX, startY: e.clientY, startGridX: entry.data.x, startGridZ: entry.data.z };
+        this.dragState = {
+          pointerId: e.pointerId, instanceId, userData: hitObj.userData,
+          startX: e.clientX, startY: e.clientY, startGridX: entry.data.x, startGridZ: entry.data.z
+        };
         this.dragMoved = false;
         this.controls.enabled = false;
         this.renderer.domElement.setPointerCapture(e.pointerId);
